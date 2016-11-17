@@ -21,7 +21,7 @@ from pprint import pprint
 import numpy as np
 from scipy.sparse import dok_matrix
 
-from sr.error import ServiceRegistryError
+from error import ServiceRegistryError
 
 
 class ServiceRegistry:
@@ -128,22 +128,28 @@ class ServiceRegistry:
 		entities = OrderedDict(entities_list)
 		return entities
 
-	def list_full(self, state):
+	def list_full(self, state, type='all'):
 		"""
 		Retrieves the complete entity data of all records that are active and have 
-		the supplied state.
+		the supplied state. Can also be filtered on type.
 		
 		States:	'prodaccepted': it is in the production environment
 				'testaccepted': it is in the test environment, used for testing,
 								acceptation or development
+		
+		Types:	'all'		: all entity types
+				'saml20-idp': only IdPs
+				'saml20-sp'	: only SPs
 				
 		"""
 		entities = self.list()
 		selected = {}
+		acceptAll = (type == 'all')
 		for eid, entity in entities.items():
-			if entity['isActive'] and entity['state']==state:
-				print(eid)
-				selected[eid] = self.get(eid)
+			if  ( entity['isActive'] and entity['state']==state and 
+				( acceptAll or entity['type'] == type )):
+					print(eid)
+					selected[eid] = self.get(eid)
 		return selected
 
 	# returns list of all known eids
@@ -174,7 +180,10 @@ class ServiceRegistry:
 		"""
 		data = self._http_req('connections/%u' % eid)
 		self.debug(0x01, data['decoded'])
-		return data['decoded']
+		result = data['decoded']
+		if 'manipulationCode' not in result:
+			result['manipulationCode'] = ""
+		return result
 
 	def replace(self, eid, entity, note=None, force=False):
 		"""
@@ -294,3 +303,4 @@ class ServiceRegistry:
 		self._connections[state]['acl'] = connections
 
 		return connections
+
